@@ -2,6 +2,9 @@ const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
 
+// Ссылка на бэкенд (твой туннель или Render)
+const API_BASE = "https://58ac51d2728111.lhr.life"; 
+
 let currentTab = 'home';
 
 function estimatePrice(username) {
@@ -15,9 +18,6 @@ function estimatePrice(username) {
 
 async function refresh() {
     try {
-        // ЗАМЕНИ ЭТУ ССЫЛКУ НА СВОЮ ИЗ ТУННЕЛЯ ИЛИ RENDER!
-        const API_BASE = "https://58ac51d2728111.lhr.life"; 
-        
         const r = await fetch(`${API_BASE}/api/stats`);
         const d = await r.json();
         
@@ -43,7 +43,7 @@ async function refresh() {
                 `<div class="find-item">
                     <div class="find-info">
                         <span class="find-name">@${n}</span>
-                        <span class="find-meta">${n.length} chars</span>
+                        <span class="find-meta">${n.length} chars • Beautiful</span>
                     </div>
                     <span class="price-badge">$${estimatePrice(n)}</span>
                 </div>`
@@ -57,7 +57,6 @@ async function refresh() {
 }
 
 function sendCmd(cmd) {
-    const API_BASE = "https://58ac51d2728111.lhr.life"; // Та же ссылка
     fetch(`${API_BASE}/api/command`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -65,46 +64,54 @@ function sendCmd(cmd) {
     }).then(() => setTimeout(refresh, 500));
 }
 
-function removeVip(name) {
-    sendCmd('/remove ' + name);
-}
-
-function openModal() {
-    document.getElementById('modal').classList.remove('hidden');
-}
-
-function closeModal() {
-    document.getElementById('modal').classList.add('hidden');
-}
+function removeVip(name) { sendCmd('/remove ' + name); }
+function openModal() { document.getElementById('modal').classList.remove('hidden'); }
+function closeModal() { document.getElementById('modal').classList.add('hidden'); }
 
 function submitVip() {
     const v = document.getElementById('vip-input').value.trim().replace(/@/g, '').toLowerCase();
-    if (v && v.length >= 5) {
+    // Строго 7 букв, только a-z
+    if (/^[a-z]{7}$/.test(v)) {
         sendCmd('/add ' + v);
         document.getElementById('vip-input').value = '';
         closeModal();
+    } else {
+        alert("Only 7 letters allowed (a-z)!");
     }
 }
 
 function generateNames() {
     const gc = document.getElementById('gen-container');
-    gc.innerHTML = '<div style="text-align:center;color:#999;padding:20px">Generating...</div>';
+    gc.innerHTML = '<div style="text-align:center;color:#999;padding:20px">Generating beautiful names...</div>';
+    
     setTimeout(() => {
         const names = [];
-        for (let i = 0; i < 5; i++) {
-            names.push(Array.from({length: 7}, () => String.fromCharCode(97 + Math.floor(Math.random() * 26))).join(''));
+        let attempts = 0;
+        while(names.length < 5 && attempts < 100) {
+            // Генерируем строго 7 строчных букв
+            const candidate = Array.from({length: 7}, () => String.fromCharCode(97 + Math.floor(Math.random() * 26))).join('');
+            
+            // Фильтр: нет 3 одинаковых подряд, есть хотя бы одна гласная
+            if (!/(.)\1{2}/.test(candidate) && /[aeiou]/.test(candidate)) {
+                names.push(candidate);
+            }
+            attempts++;
         }
+        
         gc.innerHTML = names.map(n => 
             `<div class="gen-item">
                 <span class="gen-name">@${n}</span>
                 <span class="price-badge">$${estimatePrice(n)}</span>
             </div>`
-        ).join('');
+        ).join('') || '<div style="color:red;text-align:center">Try again!</div>';
     }, 300);
 }
 
+// Оплата только через Stars
 function buyPlan(plan) {
-    alert('Payment for ' + plan + ' plan initiated! Check Telegram for payment options.');
+    // Отправляем команду боту, он пришлет инвойс со Star-ами
+    sendCmd(`/pay_${plan}`);
+    alert(`Opening payment for ${plan.toUpperCase()} via Telegram Stars...`);
 }
 
 function copyRefLink() {
